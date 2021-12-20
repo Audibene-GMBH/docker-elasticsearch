@@ -45,10 +45,10 @@ if [ ! -z "${SHARD_ALLOCATION_AWARENESS_ATTR}" ]; then
     fi
 
     NODE_NAME="${ES_SHARD_ATTR}-${NODE_NAME}"
-    echo "node.attr.${SHARD_ALLOCATION_AWARENESS}: ${ES_SHARD_ATTR}" >> $BASE/config/elasticsearch.yml
+    echo "node.attr.${SHARD_ALLOCATION_AWARENESS}: ${ES_SHARD_ATTR}" >>$BASE/config/elasticsearch.yml
 
     if [ "$NODE_MASTER" == "true" ]; then
-        echo "cluster.routing.allocation.awareness.attributes: ${SHARD_ALLOCATION_AWARENESS}" >> "${BASE}"/config/elasticsearch.yml
+        echo "cluster.routing.allocation.awareness.attributes: ${SHARD_ALLOCATION_AWARENESS}" >>"${BASE}"/config/elasticsearch.yml
     fi
 fi
 
@@ -64,9 +64,9 @@ if [[ $(whoami) == "root" ]]; then
         echo "Changing ownership of /data folder"
         chown -R elasticsearch:elasticsearch /data
     fi
-    exec su-exec elasticsearch $BASE/bin/elasticsearch $ES_EXTRA_ARGS
+    exec su -c "$BASE/bin/elasticsearch" elasticsearch $ES_EXTRA_ARGS
 else
-    # The container's first process is not running as 'root', 
+    # The container's first process is not running as 'root',
     # it does not have the rights to chown. However, we may
     # assume that it is being ran as 'elasticsearch', and that
     # the volumes already have the right permissions. This is

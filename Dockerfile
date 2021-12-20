@@ -1,10 +1,11 @@
-FROM quay.io/pires/docker-jre:8u171_alpine_3.8.1
-MAINTAINER pjpires@gmail.com
+FROM openjdk:17-slim-buster
+LABEL org.opencontainers.image.authors="pjpires@gmail.com"
 
 # Export HTTP & Transport
 EXPOSE 9200 9300
 
-ENV ES_VERSION 6.4.2
+# renovate datasource=github-tags depName=elastic/elasticsearch
+ENV ES_VERSION 6.8.22
 
 ENV DOWNLOAD_URL "https://artifacts.elastic.co/downloads/elasticsearch"
 ENV ES_TARBAL "${DOWNLOAD_URL}/elasticsearch-${ES_VERSION}.tar.gz"
@@ -12,26 +13,25 @@ ENV ES_TARBALL_ASC "${DOWNLOAD_URL}/elasticsearch-${ES_VERSION}.tar.gz.asc"
 ENV GPG_KEY "46095ACC8548582C1A2699A9D27D666CD88E42B4"
 
 # Install Elasticsearch.
-RUN apk add --no-cache --update bash ca-certificates su-exec util-linux curl
-RUN apk add --no-cache -t .build-deps gnupg openssl \
+RUN apt update && apt install -y bash ca-certificates curl gpg openssl \
   && cd /tmp \
   && echo "===> Install Elasticsearch..." \
   && curl -o elasticsearch.tar.gz -Lskj "$ES_TARBAL"; \
-	if [ "$ES_TARBALL_ASC" ]; then \
-		curl -o elasticsearch.tar.gz.asc -Lskj "$ES_TARBALL_ASC"; \
-		export GNUPGHOME="$(mktemp -d)"; \
-		gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$GPG_KEY"; \
-		gpg --batch --verify elasticsearch.tar.gz.asc elasticsearch.tar.gz; \
-		rm -r "$GNUPGHOME" elasticsearch.tar.gz.asc; \
-	fi; \
+  if [ "$ES_TARBALL_ASC" ]; then \
+  curl -o elasticsearch.tar.gz.asc -Lskj "$ES_TARBALL_ASC"; \
+  export GNUPGHOME="$(mktemp -d)"; \
+  gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$GPG_KEY"; \
+  gpg --batch --verify elasticsearch.tar.gz.asc elasticsearch.tar.gz; \
+  rm -r "$GNUPGHOME" elasticsearch.tar.gz.asc; \
+  fi; \
   tar -xf elasticsearch.tar.gz \
   && ls -lah \
   && mv elasticsearch-$ES_VERSION /elasticsearch \
-  && adduser -DH -s /sbin/nologin elasticsearch \
+  && adduser --no-create-home --disabled-password --shell /sbin/nologin elasticsearch \
   && mkdir -p /elasticsearch/config/scripts /elasticsearch/plugins \
   && chown -R elasticsearch:elasticsearch /elasticsearch \
   && rm -rf /tmp/* \
-  && apk del --purge .build-deps
+  && apt clean
 
 ENV PATH /elasticsearch/bin:$PATH
 
