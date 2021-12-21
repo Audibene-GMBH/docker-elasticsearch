@@ -27,7 +27,7 @@ RUN apt update && apt install -y bash ca-certificates curl gpg openssl \
   tar -xf elasticsearch.tar.gz \
   && ls -lah \
   && mv elasticsearch-$ES_VERSION /elasticsearch \
-  && adduser --no-create-home --disabled-password --shell /sbin/nologin elasticsearch \
+  && adduser --no-create-home --disabled-password --shell /usr/sbin/nologin elasticsearch \
   && mkdir -p /elasticsearch/config/scripts /elasticsearch/plugins \
   && chown -R elasticsearch:elasticsearch /elasticsearch \
   && rm -rf /tmp/* \
