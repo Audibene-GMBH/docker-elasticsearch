@@ -6,30 +6,39 @@ EXPOSE 9200 9300
 
 # renovate datasource=github-tags depName=elastic/elasticsearch
 ENV ES_VERSION 6.8.22
+# renovate datasource=github-tags depName=tianon/gosu
+ENV GOSU_VERSION 1.14
 
 ENV DOWNLOAD_URL "https://artifacts.elastic.co/downloads/elasticsearch"
 ENV ES_TARBAL "${DOWNLOAD_URL}/elasticsearch-${ES_VERSION}.tar.gz"
 ENV ES_TARBALL_ASC "${DOWNLOAD_URL}/elasticsearch-${ES_VERSION}.tar.gz.asc"
-ENV GPG_KEY "46095ACC8548582C1A2699A9D27D666CD88E42B4"
+
+ENV GOSU_DOWNLOAD_URL "https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}"
+ENV GOSU_GPG_KEY "B42F6819007F00F88E364FD4036A9C25BF357DD4"
+
+COPY elasticsearch-gpg-key /tmp
 
 # Install Elasticsearch.
-RUN apt update && apt install -y bash ca-certificates curl gpg openssl \
+RUN set -x && apt update && apt install -y bash ca-certificates curl gpg openssl \
   && cd /tmp \
-  && echo "===> Install Elasticsearch..." \
-  && curl -o elasticsearch.tar.gz -Lskj "$ES_TARBAL"; \
-  if [ "$ES_TARBALL_ASC" ]; then \
-  curl -o elasticsearch.tar.gz.asc -Lskj "$ES_TARBALL_ASC"; \
-  export GNUPGHOME="$(mktemp -d)"; \
-  gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$GPG_KEY"; \
-  gpg --batch --verify elasticsearch.tar.gz.asc elasticsearch.tar.gz; \
-  rm -r "$GNUPGHOME" elasticsearch.tar.gz.asc; \
-  fi; \
-  tar -xf elasticsearch.tar.gz \
+  && export GNUPGHOME="$(mktemp -d)" \
+  && gpg --import /tmp/elasticsearch-gpg-key \
+  && gpg --keyserver hkps://keys.openpgp.org --recv-keys "${GOSU_GPG_KEY}" \
+  && curl -o elasticsearch.tar.gz -Lskj "$ES_TARBAL" \
+  && curl -o elasticsearch.tar.gz.asc -Lskj "$ES_TARBALL_ASC" \
+  && gpg --batch --verify elasticsearch.tar.gz.asc elasticsearch.tar.gz \
+  && tar -xf elasticsearch.tar.gz \
   && ls -lah \
   && mv elasticsearch-$ES_VERSION /elasticsearch \
-  && adduser --no-create-home --disabled-password --shell /usr/sbin/nologin elasticsearch \
+  && useradd --no-create-home --shell /sbin/nologin elasticsearch \
   && mkdir -p /elasticsearch/config/scripts /elasticsearch/plugins \
   && chown -R elasticsearch:elasticsearch /elasticsearch \
+  && arch=$(dpkg --print-architecture | awk -F- '{ print $NF }') \
+  && curl -sLo gosu "${GOSU_DOWNLOAD_URL}/gosu-${arch}" \
+  && curl -sLo gosu.asc "${GOSU_DOWNLOAD_URL}/gosu-${arch}.asc" \
+  && gpg --batch --verify gosu.asc gosu \
+  && chmod +x gosu \
+  && mv gosu /usr/local/bin/gosu \
   && rm -rf /tmp/* \
   && apt clean
 
