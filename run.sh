@@ -66,7 +66,7 @@ if [[ $(whoami) == "root" ]]; then
         echo "Changing ownership of /data folder"
         chown -R elasticsearch:elasticsearch /data
     fi
-    gosu elasticsearch "$BASE/bin/elasticsearch" "$ES_EXTRA_ARGS"
+    gosu elasticsearch "$BASE/bin/elasticsearch" $ES_EXTRA_ARGS
 else
     # The container's first process is not running as 'root',
     # it does not have the rights to chown. However, we may
@@ -74,5 +74,5 @@ else
     # the volumes already have the right permissions. This is
     # the case for Kubernetes, for example, when 'runAsUser: 1000'
     # and 'fsGroup:100' are defined in the pod's security context.
-    "${BASE}"/bin/elasticsearch "${ES_EXTRA_ARGS}"
+    "${BASE}"/bin/elasticsearch ${ES_EXTRA_ARGS}
 fi
