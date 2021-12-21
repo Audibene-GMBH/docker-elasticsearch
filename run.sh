@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+set -exo pipefail
 
 echo "Starting Elasticsearch ${ES_VERSION}"
 
@@ -16,17 +17,18 @@ fi
 
 # Create a temporary folder for Elasticsearch ourselves
 # ref: https://github.com/elastic/elasticsearch/pull/27659
-export ES_TMPDIR="$(mktemp -d -t elasticsearch.XXXXXXXX)"
+ES_TMPDIR="$(mktemp -d -t elasticsearch.XXXXXXXX)"
+export ES_TMPDIR
 
 # Prevent "Text file busy" errors
 sync
 
-if [ ! -z "${ES_PLUGINS_INSTALL}" ]; then
+if [ -n "${ES_PLUGINS_INSTALL}" ]; then
     OLDIFS="${IFS}"
     IFS=","
     for plugin in ${ES_PLUGINS_INSTALL}; do
-        if ! "${BASE}"/bin/elasticsearch-plugin list | grep -qs ${plugin}; then
-            until "${BASE}"/bin/elasticsearch-plugin install --batch ${plugin}; do
+        if ! "${BASE}"/bin/elasticsearch-plugin list | grep -qs "${plugin}"; then
+            until "${BASE}"/bin/elasticsearch-plugin install --batch "${plugin}"; do
                 echo "Failed to install ${plugin}, retrying in 3s"
                 sleep 3
             done
@@ -35,7 +37,7 @@ if [ ! -z "${ES_PLUGINS_INSTALL}" ]; then
     IFS="${OLDIFS}"
 fi
 
-if [ ! -z "${SHARD_ALLOCATION_AWARENESS_ATTR}" ]; then
+if [ -n "${SHARD_ALLOCATION_AWARENESS_ATTR}" ]; then
     # this will map to a file like  /etc/hostname => /dockerhostname so reading that file will get the
     #  container hostname
     if [ -f "${SHARD_ALLOCATION_AWARENESS_ATTR}" ]; then
@@ -64,7 +66,7 @@ if [[ $(whoami) == "root" ]]; then
         echo "Changing ownership of /data folder"
         chown -R elasticsearch:elasticsearch /data
     fi
-    exec su -c "$BASE/bin/elasticsearch" elasticsearch $ES_EXTRA_ARGS
+    exec su -c "$BASE/bin/elasticsearch" elasticsearch "$ES_EXTRA_ARGS"
 else
     # The container's first process is not running as 'root',
     # it does not have the rights to chown. However, we may
@@ -72,5 +74,5 @@ else
     # the volumes already have the right permissions. This is
     # the case for Kubernetes, for example, when 'runAsUser: 1000'
     # and 'fsGroup:100' are defined in the pod's security context.
-    "${BASE}"/bin/elasticsearch ${ES_EXTRA_ARGS}
+    "${BASE}"/bin/elasticsearch "${ES_EXTRA_ARGS}"
 fi
