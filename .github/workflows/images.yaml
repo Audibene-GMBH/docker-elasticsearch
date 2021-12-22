@@ -1,0 +1,28 @@
+name: Images
+on:
+  push:
+    branches: [master, staging, trying]
+    tags: ["*"]
+  pull_request:
+    branches: [master]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: ghcr.io
+      REPOSITORY: audibene-gmbh/docker-elasticsearch
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login to docker
+        run: |
+          echo  ${{ secrets.GITHUB_TOKEN }} | docker login --username ${{ github.actor }} --password-stdin $REGISTRY
+      - run: docker buildx create --use
+      - name: Get branch name
+        if: github.event_name == 'pull_request'
+        run: echo TAG_NAME=pr-${{ github.event.pull_request.head.ref }} >> $GITHUB_ENV
+      - name: Get branch name
+        run: echo TAG_NAME=${{ github.ref_name }} >> $GITHUB_ENV
+        if: github.event_name != 'pull_request'
+      - name: "Build ${{ env.TAG_NAME }}"
+        run: docker buildx build --platform linux/amd64 -t $REGISTRY/$REPOSITORY:${{ env.TAG_NAME }} --pull --push .
+      

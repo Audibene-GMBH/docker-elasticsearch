@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+set -exo pipefail
 
 echo "Starting Elasticsearch ${ES_VERSION}"
 
@@ -16,17 +17,18 @@ fi
 
 # Create a temporary folder for Elasticsearch ourselves
 # ref: https://github.com/elastic/elasticsearch/pull/27659
-export ES_TMPDIR="$(mktemp -d -t elasticsearch.XXXXXXXX)"
+ES_TMPDIR="$(mktemp -d -t elasticsearch.XXXXXXXX)"
+export ES_TMPDIR
 
 # Prevent "Text file busy" errors
 sync
 
-if [ ! -z "${ES_PLUGINS_INSTALL}" ]; then
+if [ -n "${ES_PLUGINS_INSTALL}" ]; then
     OLDIFS="${IFS}"
     IFS=","
     for plugin in ${ES_PLUGINS_INSTALL}; do
-        if ! "${BASE}"/bin/elasticsearch-plugin list | grep -qs ${plugin}; then
-            until "${BASE}"/bin/elasticsearch-plugin install --batch ${plugin}; do
+        if ! "${BASE}"/bin/elasticsearch-plugin list | grep -qs "${plugin}"; then
+            until "${BASE}"/bin/elasticsearch-plugin install --batch "${plugin}"; do
                 echo "Failed to install ${plugin}, retrying in 3s"
                 sleep 3
             done
@@ -35,7 +37,7 @@ if [ ! -z "${ES_PLUGINS_INSTALL}" ]; then
     IFS="${OLDIFS}"
 fi
 
-if [ ! -z "${SHARD_ALLOCATION_AWARENESS_ATTR}" ]; then
+if [ -n "${SHARD_ALLOCATION_AWARENESS_ATTR}" ]; then
     # this will map to a file like  /etc/hostname => /dockerhostname so reading that file will get the
     #  container hostname
     if [ -f "${SHARD_ALLOCATION_AWARENESS_ATTR}" ]; then
@@ -45,10 +47,10 @@ if [ ! -z "${SHARD_ALLOCATION_AWARENESS_ATTR}" ]; then
     fi
 
     NODE_NAME="${ES_SHARD_ATTR}-${NODE_NAME}"
-    echo "node.attr.${SHARD_ALLOCATION_AWARENESS}: ${ES_SHARD_ATTR}" >> $BASE/config/elasticsearch.yml
+    echo "node.attr.${SHARD_ALLOCATION_AWARENESS}: ${ES_SHARD_ATTR}" >>$BASE/config/elasticsearch.yml
 
     if [ "$NODE_MASTER" == "true" ]; then
-        echo "cluster.routing.allocation.awareness.attributes: ${SHARD_ALLOCATION_AWARENESS}" >> "${BASE}"/config/elasticsearch.yml
+        echo "cluster.routing.allocation.awareness.attributes: ${SHARD_ALLOCATION_AWARENESS}" >>"${BASE}"/config/elasticsearch.yml
     fi
 fi
 
@@ -64,9 +66,9 @@ if [[ $(whoami) == "root" ]]; then
         echo "Changing ownership of /data folder"
         chown -R elasticsearch:elasticsearch /data
     fi
-    exec su-exec elasticsearch $BASE/bin/elasticsearch $ES_EXTRA_ARGS
+    gosu elasticsearch "$BASE/bin/elasticsearch" $ES_EXTRA_ARGS
 else
-    # The container's first process is not running as 'root', 
+    # The container's first process is not running as 'root',
     # it does not have the rights to chown. However, we may
     # assume that it is being ran as 'elasticsearch', and that
     # the volumes already have the right permissions. This is
