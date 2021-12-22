@@ -35,6 +35,9 @@
 ##
 ################################################################
 
+## GC configuration
+-XX:+UseG1GC
+
 ## optimizations
 
 # disable calls to System#gc
